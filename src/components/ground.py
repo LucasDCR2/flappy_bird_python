@@ -15,7 +15,8 @@ import typing # type: ignore
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from assets import GROUND
-from config import GROUND_HEIGHT, GAME_SPEED
+from config import GROUND_HEIGHT
+import config # Importa o módulo inteiro
 from texture_manager import TextureManager
 
 class Ground:
@@ -90,7 +91,7 @@ class Ground:
             delta_time: Tempo desde o último quadro em segundos
         """
         # Atualiza o offset x baseado na velocidade e no delta_time
-        self.offset_x += GAME_SPEED * delta_time
+        self.offset_x += config.GAME_SPEED * delta_time
         
         # Garante que o offset fique dentro de um range razoável para evitar problemas de precisão
         # com números de ponto flutuante após muito tempo de jogo

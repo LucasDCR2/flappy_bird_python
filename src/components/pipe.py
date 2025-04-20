@@ -11,7 +11,8 @@ from OpenGL.GL import *
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from texture_manager import TextureManager
-from config import PIPE_SPEED, PIPE_GAP, PIPE_SPAWN_INTERVAL, PIPE_HEIGHT, PIPE_WIDTH
+from config import PIPE_GAP, PIPE_SPAWN_INTERVAL, PIPE_HEIGHT, PIPE_WIDTH
+import config # Importa o módulo inteiro
 import assets
 
 # Assume um tipo simples para retângulo de colisão (x, y, width, height)
@@ -53,7 +54,7 @@ class Pipe:
         Args:
             delta_time: Tempo desde o último quadro
         """
-        self.x -= PIPE_SPEED * delta_time
+        self.x -= config.PIPE_SPEED * delta_time
 
     def render(self) -> None:
         """

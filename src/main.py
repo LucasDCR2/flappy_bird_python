@@ -11,6 +11,7 @@ from OpenGL.GL import glEnable, glBlendFunc, GL_BLEND, GL_SRC_ALPHA, GL_ONE_MINU
 import time
 import sys
 import typing
+import config # Importa o módulo config inteiro para modificar seus valores
 
 # Importa módulos do jogo
 from config import WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE
@@ -33,6 +34,7 @@ last_time: float = 0
 game_over: bool = False
 score: int = 0
 game_started: bool = False
+last_speed_increase_score: int = 0 # Guarda a última pontuação que causou aumento de velocidade
 
 # Callback para teclas
 def key_callback(window, key, scancode, action, mods) -> None:
@@ -94,11 +96,18 @@ def restart_game() -> None:
     """
     Reinicia o jogo para um novo round
     """
-    global bird, game_over, texture_manager, pipe_manager, score, game_started, game_over_screen
+    global bird, game_over, texture_manager, pipe_manager, score, game_started, game_over_screen, last_speed_increase_score
     
     # Reinicia o estado do jogo
     game_over = False
     score = 0
+    last_speed_increase_score = 0 # Reseta o tracker de velocidade
+    
+    # Reseta as velocidades para os valores iniciais
+    config.GAME_SPEED = config.INITIAL_GAME_SPEED
+    config.PIPE_SPEED = config.INITIAL_PIPE_SPEED
+    config.PIPE_SPAWN_INTERVAL = config.INITIAL_PIPE_SPAWN_INTERVAL # Reseta o intervalo
+    print(f"Velocidade/Intervalo resetados: Chão={config.GAME_SPEED}, Canos={config.PIPE_SPEED}, Intervalo={config.PIPE_SPAWN_INTERVAL:.2f}")
     
     # Esconde a tela de game over
     if game_over_screen:
@@ -223,7 +232,7 @@ def update(delta_time: float) -> None:
     Args:
         delta_time: Tempo desde o último quadro em segundos
     """
-    global ground, bird, pipe_manager, game_over, score, game_started
+    global ground, bird, pipe_manager, game_over, score, game_started, last_speed_increase_score
     
     # Atualiza o chão apenas se o jogo não terminou
     if ground and not game_over:
@@ -246,6 +255,15 @@ def update(delta_time: float) -> None:
                 if points > 0:
                     score += points
                     print(f"Pontuação: {score}")
+                    
+                    # Verifica se deve aumentar a velocidade (a cada 5 pontos)
+                    if score > 0 and score % 5 == 0 and score > last_speed_increase_score:
+                        speed_multiplier = 1.10 # Aumento de 10%
+                        config.GAME_SPEED *= speed_multiplier
+                        config.PIPE_SPEED *= speed_multiplier
+                        config.PIPE_SPAWN_INTERVAL /= speed_multiplier # Diminui o intervalo
+                        print(f"Score {score}: Aumentando velocidade! Nova: Chão={config.GAME_SPEED:.2f}, Canos={config.PIPE_SPEED:.2f}, Intervalo={config.PIPE_SPAWN_INTERVAL:.2f}")
+                        last_speed_increase_score = score # Atualiza a última pontuação que aumentou a velocidade
             
         # Verifica colisões
         check_collisions()
