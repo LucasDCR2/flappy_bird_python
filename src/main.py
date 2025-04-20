@@ -196,7 +196,8 @@ def check_collisions() -> bool:
         return True
     
     # Verifica colisão com os canos
-    if pipe_manager.check_collision(bird.collision_rect):
+    bird_hitbox = (bird.collision_rect['x'], bird.collision_rect['y'], bird.collision_rect['width'], bird.collision_rect['height'])
+    if pipe_manager.check_collision(bird_hitbox):
         game_over = True
         bird.die()
         # Mostra a tela de Game Over com a pontuação
