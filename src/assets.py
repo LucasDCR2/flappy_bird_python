@@ -1,24 +1,31 @@
 """
 Constantes para os assets do jogo Flappy Bird
-Corresponde ao arquivo assets.dart do projeto Flutter
+Compatível com qualquer sistema operacional usando pathlib
 """
 
+from pathlib import Path
+
+# Caminho base relativo ao local deste arquivo
+BASE_PATH = Path(__file__).resolve().parent / "assets"
+IMAGES_PATH = BASE_PATH / "images"
+AUDIO_PATH = BASE_PATH / "audio"
+
 # Imagens
-BACKGROUND: str = '../assets/images/background.png'
-GROUND: str = '../assets/images/ground.png'
-CLOUDS: str = '../assets/images/clouds.png'
-PIPE: str = '../assets/images/pipe.png'
-PIPE_ROTATED: str = '../assets/images/pipe_rotated.png'
+BACKGROUND = IMAGES_PATH / "background.png"
+GROUND = IMAGES_PATH / "ground.png"
+CLOUDS = IMAGES_PATH / "clouds.png"
+PIPE = IMAGES_PATH / "pipe.png"
+PIPE_ROTATED = IMAGES_PATH / "pipe_rotated.png"
 
-BIRD_MID_FLAP: str = '../assets/images/bird_midflap.png'
-BIRD_UP_FLAP: str = '../assets/images/bird_upflap.png'
-BIRD_DOWN_FLAP: str = '../assets/images/bird_downflap.png'
+BIRD_MID_FLAP = IMAGES_PATH / "bird_midflap.png"
+BIRD_UP_FLAP = IMAGES_PATH / "bird_upflap.png"
+BIRD_DOWN_FLAP = IMAGES_PATH / "bird_downflap.png"
 
-GAME_OVER: str = '../assets/images/gameover.png'
-MENU: str = '../assets/images/menu.jpg'
-MESSAGE: str = '../assets/images/message.png'
+GAME_OVER = IMAGES_PATH / "gameover.png"
+MENU = IMAGES_PATH / "menu.jpg"
+MESSAGE = IMAGES_PATH / "message.png"
 
-# Audio
-FLYING: str = '../assets/audio/fly.wav'
-COLLISION: str = '../assets/audio/collision.wav'
-POINT: str = '../assets/audio/point.wav'
+# Áudio
+FLYING = AUDIO_PATH / "fly.wav"
+COLLISION = AUDIO_PATH / "collision.wav"
+POINT = AUDIO_PATH / "point.wav"

@@ -23,6 +23,7 @@ from components.pipe import PipeManager
 from components.overlay import StartScreenOverlay, GameOverOverlay
 
 # Variáveis globais
+lives: int = 3
 texture_manager: typing.Optional[TextureManager] = None
 background: typing.Optional[Background] = None
 ground: typing.Optional[Ground] = None
@@ -93,31 +94,26 @@ def mouse_button_callback(window, button, action, mods) -> None:
             bird.jump()
 
 def restart_game() -> None:
-    """
-    Reinicia o jogo para um novo round
-    """
-    global bird, game_over, texture_manager, pipe_manager, score, game_started, game_over_screen, last_speed_increase_score
-    
-    # Reinicia o estado do jogo
+    global bird, game_over, texture_manager, pipe_manager, score, game_started, game_over_screen, last_speed_increase_score, lives
+
+    # Se o jogo acabou de verdade, reseta vidas e score
+    if lives <= 0:
+        lives = 3
+        score = 0
+        last_speed_increase_score = 0
+        config.GAME_SPEED = config.INITIAL_GAME_SPEED
+        config.PIPE_SPEED = config.INITIAL_PIPE_SPEED
+        config.PIPE_SPAWN_INTERVAL = config.INITIAL_PIPE_SPAWN_INTERVAL
+        print(f"Velocidade/Intervalo resetados: Chão={config.GAME_SPEED}, Canos={config.PIPE_SPEED}, Intervalo={config.PIPE_SPAWN_INTERVAL:.2f}")
+
     game_over = False
-    score = 0
-    last_speed_increase_score = 0 # Reseta o tracker de velocidade
-    
-    # Reseta as velocidades para os valores iniciais
-    config.GAME_SPEED = config.INITIAL_GAME_SPEED
-    config.PIPE_SPEED = config.INITIAL_PIPE_SPEED
-    config.PIPE_SPAWN_INTERVAL = config.INITIAL_PIPE_SPAWN_INTERVAL # Reseta o intervalo
-    print(f"Velocidade/Intervalo resetados: Chão={config.GAME_SPEED}, Canos={config.PIPE_SPEED}, Intervalo={config.PIPE_SPAWN_INTERVAL:.2f}")
-    
-    # Esconde a tela de game over
+
     if game_over_screen:
         game_over_screen.hide()
-    
-    # Recria o pássaro
+
     if texture_manager:
         bird = Bird(texture_manager, WINDOW_WIDTH, WINDOW_HEIGHT)
-    
-    # Reinicia o gerenciador de canos
+
     if pipe_manager:
         pipe_manager.reset()
 
@@ -183,46 +179,36 @@ def initialize() -> typing.Optional[typing.Any]:
     return window
 
 def check_collisions() -> bool:
-    """
-    Verifica colisões entre o pássaro e outros objetos
-    
-    Returns:
-        bool: True se houve colisão, False caso contrário
-    """
-    global bird, ground, pipe_manager, game_over, game_over_screen, score
-    
-    # Verifica se os componentes estão inicializados
+    global bird, ground, pipe_manager, game_over, game_over_screen, score, lives
+
     if not bird or not ground or not pipe_manager:
         return False
-    
-    # Verifica colisão com o chão
+
+    hit = False
+
     if ground.check_collision(bird.collision_rect):
-        game_over = True
-        bird.die()
-        # Mostra a tela de Game Over com a pontuação
-        if game_over_screen:
-            game_over_screen.show_with_score(score)
-        return True
-    
-    # Verifica colisão com os canos
+        hit = True
+
     bird_hitbox = (bird.collision_rect['x'], bird.collision_rect['y'], bird.collision_rect['width'], bird.collision_rect['height'])
     if pipe_manager.check_collision(bird_hitbox):
-        game_over = True
+        hit = True
+
+    if bird.y + bird.height / 2 > WINDOW_HEIGHT:
+        hit = True
+
+    if hit:
         bird.die()
-        # Mostra a tela de Game Over com a pontuação
-        if game_over_screen:
-            game_over_screen.show_with_score(score)
+        lives -= 1
+        print(f"Colidiu! Vidas restantes: {lives}")
+        if lives <= 0:
+            game_over = True
+            if game_over_screen:
+                game_over_screen.show_with_score(score)
+        else:
+            # Reinicia automaticamente para próxima vida
+            restart_game()
         return True
-    
-    # Verifica se o pássaro saiu da tela (topo)
-    if bird.y + bird.height/2 > WINDOW_HEIGHT:
-        game_over = True
-        bird.die()
-        # Mostra a tela de Game Over com a pontuação
-        if game_over_screen:
-            game_over_screen.show_with_score(score)
-        return True
-        
+
     return False
 
 def update(delta_time: float) -> None:
