@@ -14,8 +14,10 @@ import typing # type: ignore
 # Adiciona o diretório pai ao path para importar módulos
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from assets import MESSAGE, GAME_OVER
+from assets import MESSAGE, GAME_OVER, HEART
+from assets import NUMBER_0, NUMBER_1, NUMBER_2, NUMBER_3, NUMBER_4, NUMBER_5, NUMBER_6, NUMBER_7, NUMBER_8, NUMBER_9
 from texture_manager import TextureManager
+from config import HEART_WIDTH, HEART_HEIGHT, HEART_SPACING, SCORE_NUMBER_WIDTH, SCORE_NUMBER_HEIGHT, SCORE_NUMBER_SPACING, MAX_LIVES
 
 class Overlay:
     """
@@ -588,3 +590,205 @@ class GameOverOverlay(Overlay):
         # para renderizar algo como "Score: {self.score}"
         # posicionado acima do botão de restart
         pass 
+
+class HeartDisplay(Overlay):
+    """
+    Overlay para exibir os corações representando as vidas do jogador
+    no canto superior esquerdo da tela
+    """
+    
+    def __init__(self, texture_manager: TextureManager, window_width: float, window_height: float, max_lives: int = MAX_LIVES):
+        """
+        Inicializa o display de corações
+        
+        Args:
+            texture_manager: Gerenciador de texturas
+            window_width: Largura da janela
+            window_height: Altura da janela
+            max_lives: Número máximo de vidas
+        """
+        super().__init__(texture_manager, window_width, window_height)
+        
+        # Sempre visível durante o jogo
+        self.is_visible = True
+        
+        # Carrega a textura do coração
+        self.heart_texture = texture_manager.load_texture(HEART, "heart")
+        
+        # Dimensões de cada coração (usando valores do config)
+        self.heart_width = HEART_WIDTH
+        self.heart_height = HEART_HEIGHT
+        
+        # Espaçamento entre corações (usando valores do config)
+        self.heart_spacing = HEART_SPACING
+        
+        # Posição inicial (canto superior esquerdo com pequena margem)
+        self.initial_x = 10.0
+        self.initial_y = window_height - self.heart_height - 10.0
+        
+        # Número atual e máximo de vidas
+        self.current_lives = max_lives
+        self.max_lives = max_lives
+    
+    def update_lives(self, lives: int) -> None:
+        """
+        Atualiza o número de vidas a ser exibido
+        
+        Args:
+            lives: Número atual de vidas
+        """
+        self.current_lives = max(0, min(lives, self.max_lives))
+    
+    def _render_impl(self) -> None:
+        """
+        Renderiza os corações na tela
+        """
+        # Verifica se a textura foi carregada
+        if self.heart_texture is None:
+            return
+            
+        # Salva o estado da matriz atual
+        glPushMatrix()
+        
+        # Ativa o mapeamento de texturas 2D
+        glEnable(GL_TEXTURE_2D)
+        
+        # Vincula a textura do coração
+        glBindTexture(GL_TEXTURE_2D, self.heart_texture)
+        
+        # Desenha cada coração
+        for i in range(self.current_lives):
+            x = self.initial_x + (self.heart_width + self.heart_spacing) * i
+            y = self.initial_y
+            
+            glBegin(GL_QUADS)
+            
+            glTexCoord2f(0, 0)
+            glVertex2f(x, y)
+            
+            glTexCoord2f(1, 0)
+            glVertex2f(x + self.heart_width, y)
+            
+            glTexCoord2f(1, 1)
+            glVertex2f(x + self.heart_width, y + self.heart_height)
+            
+            glTexCoord2f(0, 1)
+            glVertex2f(x, y + self.heart_height)
+            
+            glEnd()
+        
+        # Desativa o mapeamento de texturas 2D
+        glDisable(GL_TEXTURE_2D)
+        
+        # Restaura o estado da matriz
+        glPopMatrix() 
+
+class ScoreDisplay(Overlay):
+    """
+    Overlay para exibir a pontuação atual na parte superior central da tela
+    """
+    
+    def __init__(self, texture_manager: TextureManager, window_width: float, window_height: float):
+        """
+        Inicializa o display de pontuação
+        
+        Args:
+            texture_manager: Gerenciador de texturas
+            window_width: Largura da janela
+            window_height: Altura da janela
+        """
+        super().__init__(texture_manager, window_width, window_height)
+        
+        # Sempre visível durante o jogo
+        self.is_visible = True
+        
+        # Lista de constantes de números
+        self.number_textures = [
+            texture_manager.load_texture(NUMBER_0, "number_0"),
+            texture_manager.load_texture(NUMBER_1, "number_1"),
+            texture_manager.load_texture(NUMBER_2, "number_2"),
+            texture_manager.load_texture(NUMBER_3, "number_3"),
+            texture_manager.load_texture(NUMBER_4, "number_4"),
+            texture_manager.load_texture(NUMBER_5, "number_5"),
+            texture_manager.load_texture(NUMBER_6, "number_6"),
+            texture_manager.load_texture(NUMBER_7, "number_7"),
+            texture_manager.load_texture(NUMBER_8, "number_8"),
+            texture_manager.load_texture(NUMBER_9, "number_9")
+        ]
+        
+        # Dimensões de cada número (usando valores do config)
+        self.number_width = SCORE_NUMBER_WIDTH
+        self.number_height = SCORE_NUMBER_HEIGHT
+        
+        # Espaçamento entre números (usando valores do config)
+        self.number_spacing = SCORE_NUMBER_SPACING
+        
+        # Posição Y (topo da tela com margem)
+        self.position_y = window_height - self.number_height - 20.0  # Margem um pouco maior
+        
+        # Pontuação atual
+        self.score = 0
+    
+    def update_score(self, score: int) -> None:
+        """
+        Atualiza a pontuação atual
+        
+        Args:
+            score: Nova pontuação
+        """
+        self.score = max(0, score)
+    
+    def _render_impl(self) -> None:
+        """
+        Renderiza a pontuação atual na tela
+        """
+        # Converte a pontuação para string
+        score_str = str(self.score)
+        
+        # Calcula a largura total para centralizar
+        total_width = len(score_str) * self.number_width + (len(score_str) - 1) * self.number_spacing
+        
+        # Posição X inicial (centralizada)
+        start_x = (self.window_width - total_width) / 2
+        
+        # Salva o estado da matriz atual
+        glPushMatrix()
+        
+        # Ativa o mapeamento de texturas 2D
+        glEnable(GL_TEXTURE_2D)
+        
+        # Desenha cada dígito da pontuação
+        for i, digit in enumerate(score_str):
+            # Posição X deste dígito
+            x = start_x + i * (self.number_width + self.number_spacing)
+            
+            # Obtém o índice da textura (convertendo o caractere para inteiro)
+            digit_index = int(digit)
+            
+            # Verifica se a textura para este dígito foi carregada corretamente
+            if 0 <= digit_index < 10 and self.number_textures[digit_index] is not None:
+                # Vincula a textura para este dígito
+                glBindTexture(GL_TEXTURE_2D, self.number_textures[digit_index])
+                
+                # Desenha o dígito
+                glBegin(GL_QUADS)
+                
+                glTexCoord2f(0, 0)
+                glVertex2f(x, self.position_y)
+                
+                glTexCoord2f(1, 0)
+                glVertex2f(x + self.number_width, self.position_y)
+                
+                glTexCoord2f(1, 1)
+                glVertex2f(x + self.number_width, self.position_y + self.number_height)
+                
+                glTexCoord2f(0, 1)
+                glVertex2f(x, self.position_y + self.number_height)
+                
+                glEnd()
+        
+        # Desativa o mapeamento de texturas 2D
+        glDisable(GL_TEXTURE_2D)
+        
+        # Restaura o estado da matriz
+        glPopMatrix() 

@@ -14,16 +14,18 @@ import typing
 import config # Importa o módulo config inteiro para modificar seus valores
 
 # Importa módulos do jogo
-from config import WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE
+from config import WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE, MAX_LIVES
+from config import SPEED_INCREASE_FREQUENCY, SPEED_INCREASE_MULTIPLIER, HEART_ITEM_FREQUENCY
 from texture_manager import TextureManager
 from components.background import Background
 from components.ground import Ground
 from components.bird import Bird
 from components.pipe import PipeManager
-from components.overlay import StartScreenOverlay, GameOverOverlay
+from components.overlay import StartScreenOverlay, GameOverOverlay, HeartDisplay, ScoreDisplay
+from components.heart_item import HeartItem
 
 # Variáveis globais
-lives: int = 3
+lives: int = MAX_LIVES
 texture_manager: typing.Optional[TextureManager] = None
 background: typing.Optional[Background] = None
 ground: typing.Optional[Ground] = None
@@ -31,11 +33,15 @@ bird: typing.Optional[Bird] = None
 pipe_manager: typing.Optional[PipeManager] = None
 start_screen: typing.Optional[StartScreenOverlay] = None
 game_over_screen: typing.Optional[GameOverOverlay] = None
+heart_display: typing.Optional[HeartDisplay] = None
+score_display: typing.Optional[ScoreDisplay] = None
+heart_item: typing.Optional[HeartItem] = None
 last_time: float = 0
 game_over: bool = False
 score: int = 0
 game_started: bool = False
 last_speed_increase_score: int = 0 # Guarda a última pontuação que causou aumento de velocidade
+last_heart_spawn_score: int = 0 # Guarda a última pontuação que gerou um item de vida
 
 # Callback para teclas
 def key_callback(window, key, scancode, action, mods) -> None:
@@ -94,13 +100,15 @@ def mouse_button_callback(window, button, action, mods) -> None:
             bird.jump()
 
 def restart_game() -> None:
-    global bird, game_over, texture_manager, pipe_manager, score, game_started, game_over_screen, last_speed_increase_score, lives
+    global bird, game_over, texture_manager, pipe_manager, score, game_started, game_over_screen
+    global last_speed_increase_score, lives, heart_display, score_display, heart_item, last_heart_spawn_score
 
     # Se o jogo acabou de verdade, reseta vidas e score
     if lives <= 0:
-        lives = 3
+        lives = MAX_LIVES
         score = 0
         last_speed_increase_score = 0
+        last_heart_spawn_score = 0
         config.GAME_SPEED = config.INITIAL_GAME_SPEED
         config.PIPE_SPEED = config.INITIAL_PIPE_SPEED
         config.PIPE_SPAWN_INTERVAL = config.INITIAL_PIPE_SPAWN_INTERVAL
@@ -116,6 +124,69 @@ def restart_game() -> None:
 
     if pipe_manager:
         pipe_manager.reset()
+        
+    # Reseta o item de vida
+    if heart_item:
+        heart_item.reset()
+        
+    # Atualiza os displays
+    if heart_display:
+        heart_display.update_lives(lives)
+    if score_display:
+        score_display.update_score(score)
+
+def check_collisions() -> bool:
+    global bird, ground, pipe_manager, game_over, game_over_screen, score, lives, heart_display, heart_item
+
+    if not bird or not ground or not pipe_manager:
+        return False
+
+    hit = False
+
+    if ground.check_collision(bird.collision_rect):
+        hit = True
+
+    bird_hitbox = (bird.collision_rect['x'], bird.collision_rect['y'], bird.collision_rect['width'], bird.collision_rect['height'])
+    if pipe_manager.check_collision(bird_hitbox):
+        hit = True
+
+    if bird.y + bird.height / 2 > WINDOW_HEIGHT:
+        hit = True
+
+    # Verifica colisão com o item de vida
+    if heart_item and heart_item.active and heart_item.is_colliding(bird.collision_rect):
+        # Adiciona uma vida e atualiza o display
+        lives = min(lives + 1, MAX_LIVES)  # Limita ao máximo de vidas
+        if heart_display:
+            heart_display.update_lives(lives)
+        
+        # Toca um som de coleta (opcional)
+        # se tiver um som de coleta, tocar aqui
+        
+        # Desativa o item após coletado
+        heart_item.reset()
+        
+        print(f"Vida extra coletada! Vidas: {lives}")
+
+    if hit:
+        bird.die()
+        lives -= 1
+        print(f"Colidiu! Vidas restantes: {lives}")
+        
+        # Atualiza o display de corações
+        if heart_display:
+            heart_display.update_lives(lives)
+            
+        if lives <= 0:
+            game_over = True
+            if game_over_screen:
+                game_over_screen.show_with_score(score)
+        else:
+            # Reinicia automaticamente para próxima vida
+            restart_game()
+        return True
+
+    return False
 
 def initialize() -> typing.Optional[typing.Any]:
     """
@@ -125,7 +196,8 @@ def initialize() -> typing.Optional[typing.Any]:
     Returns:
         window: Objeto janela GLFW ou False em caso de erro
     """
-    global texture_manager, background, ground, bird, pipe_manager, last_time, start_screen, game_over_screen
+    global texture_manager, background, ground, bird, pipe_manager
+    global last_time, start_screen, game_over_screen, heart_display, score_display, heart_item
     
     # Inicializa GLFW
     if not glfw.init():
@@ -172,44 +244,16 @@ def initialize() -> typing.Optional[typing.Any]:
     # Inicializa os overlays
     start_screen = StartScreenOverlay(texture_manager, WINDOW_WIDTH, WINDOW_HEIGHT)
     game_over_screen = GameOverOverlay(texture_manager, WINDOW_WIDTH, WINDOW_HEIGHT)
+    heart_display = HeartDisplay(texture_manager, WINDOW_WIDTH, WINDOW_HEIGHT, MAX_LIVES)
+    score_display = ScoreDisplay(texture_manager, WINDOW_WIDTH, WINDOW_HEIGHT)
+    
+    # Inicializa o item de vida
+    heart_item = HeartItem(texture_manager, WINDOW_WIDTH, WINDOW_HEIGHT)
     
     # Inicializa o tempo
     last_time = glfw.get_time()
     
     return window
-
-def check_collisions() -> bool:
-    global bird, ground, pipe_manager, game_over, game_over_screen, score, lives
-
-    if not bird or not ground or not pipe_manager:
-        return False
-
-    hit = False
-
-    if ground.check_collision(bird.collision_rect):
-        hit = True
-
-    bird_hitbox = (bird.collision_rect['x'], bird.collision_rect['y'], bird.collision_rect['width'], bird.collision_rect['height'])
-    if pipe_manager.check_collision(bird_hitbox):
-        hit = True
-
-    if bird.y + bird.height / 2 > WINDOW_HEIGHT:
-        hit = True
-
-    if hit:
-        bird.die()
-        lives -= 1
-        print(f"Colidiu! Vidas restantes: {lives}")
-        if lives <= 0:
-            game_over = True
-            if game_over_screen:
-                game_over_screen.show_with_score(score)
-        else:
-            # Reinicia automaticamente para próxima vida
-            restart_game()
-        return True
-
-    return False
 
 def update(delta_time: float) -> None:
     """
@@ -218,7 +262,8 @@ def update(delta_time: float) -> None:
     Args:
         delta_time: Tempo desde o último quadro em segundos
     """
-    global ground, bird, pipe_manager, game_over, score, game_started, last_speed_increase_score
+    global ground, bird, pipe_manager, game_over, score, game_started
+    global last_speed_increase_score, score_display, heart_item, last_heart_spawn_score
     
     # Atualiza o chão apenas se o jogo não terminou
     if ground and not game_over:
@@ -233,6 +278,10 @@ def update(delta_time: float) -> None:
         if bird:
             bird.update(delta_time)
             
+        # Atualiza o item de vida
+        if heart_item:
+            heart_item.update(delta_time)
+            
         # Atualiza os canos e verifica pontuação
         if pipe_manager:
             pipe_manager.update(delta_time)
@@ -242,14 +291,25 @@ def update(delta_time: float) -> None:
                     score += points
                     print(f"Pontuação: {score}")
                     
-                    # Verifica se deve aumentar a velocidade (a cada 5 pontos)
-                    if score > 0 and score % 5 == 0 and score > last_speed_increase_score:
-                        speed_multiplier = 1.10 # Aumento de 10%
+                    # Atualiza o display de pontuação
+                    if score_display:
+                        score_display.update_score(score)
+                    
+                    # Verifica se deve aumentar a velocidade (a cada SPEED_INCREASE_FREQUENCY pontos)
+                    if score > 0 and score % SPEED_INCREASE_FREQUENCY == 0 and score > last_speed_increase_score:
+                        speed_multiplier = SPEED_INCREASE_MULTIPLIER
                         config.GAME_SPEED *= speed_multiplier
                         config.PIPE_SPEED *= speed_multiplier
                         config.PIPE_SPAWN_INTERVAL /= speed_multiplier # Diminui o intervalo
                         print(f"Score {score}: Aumentando velocidade! Nova: Chão={config.GAME_SPEED:.2f}, Canos={config.PIPE_SPEED:.2f}, Intervalo={config.PIPE_SPAWN_INTERVAL:.2f}")
                         last_speed_increase_score = score # Atualiza a última pontuação que aumentou a velocidade
+                    
+                    # Verifica se deve spawnar um item de vida extra (a cada HEART_ITEM_FREQUENCY pontos)
+                    if (score > 0 and score % HEART_ITEM_FREQUENCY == 0 and 
+                        score > last_heart_spawn_score and heart_item and not heart_item.active):
+                        heart_item.spawn()
+                        last_heart_spawn_score = score
+                        print(f"Score {score}: Spawning vida extra!")
             
         # Verifica colisões
         check_collisions()
@@ -274,6 +334,10 @@ def render() -> None:
     if game_started and pipe_manager:
         pipe_manager.render()
     
+    # Renderiza o item de vida, se estiver ativo
+    if game_started and heart_item and heart_item.active:
+        heart_item.render()
+    
     if ground:
         ground.render()
     
@@ -286,6 +350,14 @@ def render() -> None:
         
     if game_over_screen:
         game_over_screen.render()
+        
+    # Renderiza o display de corações sempre que o jogo estiver em andamento
+    if heart_display and game_started:
+        heart_display.render()
+        
+    # Renderiza o display de pontuação se o jogo estiver em andamento
+    if score_display and game_started:
+        score_display.render()
 
 def main() -> None:
     """

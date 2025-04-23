@@ -44,3 +44,9 @@ Este projeto é uma implementação do clássico jogo **Flappy Bird** utilizando
   - Ao colidir, o jogador perde uma vida. Com 0 vidas, aparece o Game Over.
   - Caso tenha vidas restantes, o jogo reinicia automaticamente.
 - A dificuldade aumenta automaticamente conforme a pontuação.
+
+
+## Como executar o projeto
+
+- source venv/bin/activate
+- python src/main.py
